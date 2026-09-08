@@ -1,0 +1,6 @@
+{
+  "name": "Pixel 3D Escape Room",
+  "description": "An immersive 3D pixel escape room adventure with AI search games, room exploration, hidden clues, interactive puzzles, and avatar customization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
