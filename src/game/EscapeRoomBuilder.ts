@@ -55,6 +55,8 @@ export interface EscapeRoomEnvironment {
   shortestPathBeams?: THREE.Group;
   maze5FloorTiles?: Map<string, THREE.Mesh>;
   maze5TargetMesh?: THREE.Mesh;
+  heuristicStageGroups?: Map<number, THREE.Group>;
+  heuristicTargetBeacon?: THREE.PointLight;
 }
 
 export class EscapeRoomBuilder {
@@ -7783,148 +7785,55 @@ export class EscapeRoomBuilder {
     return tex;
   }
 
-  public createHeuristicNodeTexture(
-    nodeName: string,
-    g: number,
-    h: number,
-    f: number,
-    status: 'start' | 'target' | 'normal' | 'correct' | 'wrong' = 'normal'
-  ): THREE.CanvasTexture {
+  public createHeuristicMainWallTexture(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 320;
+    canvas.width = 1024;
+    canvas.height = 512;
     const ctx = canvas.getContext('2d')!;
 
-    // Translucent dark glass background with high contrast
-    ctx.fillStyle = 'rgba(7, 11, 20, 0.94)';
-    ctx.fillRect(0, 0, 512, 320);
+    // High-tech dark slate carbon plate
+    ctx.fillStyle = '#070c18';
+    ctx.fillRect(0, 0, 1024, 512);
 
-    let borderColor = '#0284c7';
-    let accentColor = '#38bdf8';
-    let headerBg = '#0c2340';
+    // Subtle outer border with corner notches
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(16, 16, 992, 480);
 
-    if (status === 'start') {
-      borderColor = '#10b981';
-      accentColor = '#34d399';
-      headerBg = '#064e3b';
-    } else if (status === 'target') {
-      borderColor = '#ef4444';
-      accentColor = '#f87171';
-      headerBg = '#450a0a';
-    } else if (status === 'correct') {
-      borderColor = '#10b981';
-      accentColor = '#34d399';
-      headerBg = '#064e3b';
-    } else if (status === 'wrong') {
-      borderColor = '#ef4444';
-      accentColor = '#f87171';
-      headerBg = '#7f1d1d';
-    }
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(24, 24, 976, 464);
 
-    // Outer double border
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 6;
-    ctx.strokeRect(6, 6, 500, 308);
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(12, 12, 488, 296);
-
-    // Header bar
-    ctx.fillStyle = headerBg;
-    ctx.fillRect(14, 14, 484, 60);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px "Segoe UI", Roboto, sans-serif';
+    // Title: A* NAVIGATION
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '900 48px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(nodeName, 256, 56);
+    ctx.fillText('A* NAVIGATION', 512, 110);
 
-    if (status === 'start') {
-      ctx.fillStyle = '#34d399';
-      ctx.font = 'bold 24px monospace';
-      ctx.fillText('START NODE (g = 0)', 256, 150);
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '18px monospace';
-      ctx.fillText('Initial Search Origin', 256, 200);
-      ctx.fillText('f(n) = g(n) + h(n)', 256, 260);
-    } else if (status === 'target') {
-      ctx.fillStyle = '#f87171';
-      ctx.font = 'bold 26px monospace';
-      ctx.fillText('DESTINATION TARGET', 256, 140);
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 22px monospace';
-      ctx.fillText('h(TARGET) = 0', 256, 190);
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '18px monospace';
-      ctx.fillText('A* Goal Destination', 256, 250);
-    } else {
-      // 3 Numerical metrics side-by-side with high contrast
-      const colWidth = 150;
-      const startX = 36;
-      const yOffset = 90;
+    // Accent line
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(340, 135);
+    ctx.lineTo(684, 135);
+    ctx.stroke();
 
-      // Col 1: g(n)
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(startX, yOffset, colWidth, 140);
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(startX, yOffset, colWidth, 140);
+    // Central Formula Display Box
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(200, 175, 624, 130);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(200, 175, 624, 130);
 
-      ctx.fillStyle = '#f59e0b';
-      ctx.font = 'bold 18px monospace';
-      ctx.fillText('g(n)', startX + colWidth / 2, yOffset + 30);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 44px monospace';
-      ctx.fillText(String(g), startX + colWidth / 2, yOffset + 82);
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '13px sans-serif';
-      ctx.fillText('Cost Travelled', startX + colWidth / 2, yOffset + 118);
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = '900 62px monospace';
+    ctx.fillText('f(n) = g(n) + h(n)', 512, 260);
 
-      // Col 2: h(n)
-      const col2X = startX + colWidth + 12;
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(col2X, yOffset, colWidth, 140);
-      ctx.strokeStyle = '#0284c7';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(col2X, yOffset, colWidth, 140);
-
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 18px monospace';
-      ctx.fillText('h(n)', col2X + colWidth / 2, yOffset + 30);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 44px monospace';
-      ctx.fillText(String(h), col2X + colWidth / 2, yOffset + 82);
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '13px sans-serif';
-      ctx.fillText('Heuristic Est.', col2X + colWidth / 2, yOffset + 118);
-
-      // Col 3: f(n)
-      const col3X = col2X + colWidth + 12;
-      ctx.fillStyle = '#064e3b';
-      ctx.fillRect(col3X, yOffset, colWidth, 140);
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(col3X, yOffset, colWidth, 140);
-
-      ctx.fillStyle = '#34d399';
-      ctx.font = 'bold 18px monospace';
-      ctx.fillText('f(n)', col3X + colWidth / 2, yOffset + 30);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 48px monospace';
-      ctx.fillText(String(f), col3X + colWidth / 2, yOffset + 84);
-      ctx.fillStyle = '#a7f3d0';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.fillText('Total Evaluation', col3X + colWidth / 2, yOffset + 118);
-
-      // Footer formula
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 20px monospace';
-      ctx.fillText(`f(n) = ${g} + ${h} = ${f}`, 256, 275);
-
-      ctx.fillStyle = '#64748b';
-      ctx.font = '14px monospace';
-      ctx.fillText('f(n) = g(n) + h(n)', 256, 300);
-    }
+    // Core Instruction
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '600 36px sans-serif';
+    ctx.fillText('Choose the node with', 512, 375);
+    ctx.fillText('the lowest f(n).', 512, 425);
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
@@ -7933,65 +7842,273 @@ export class EscapeRoomBuilder {
 
   public createHeuristicConsoleTexture(stageNumber: number = 1): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 340;
+    canvas.width = 768;
+    canvas.height = 512;
     const ctx = canvas.getContext('2d')!;
 
-    // Console dark glass display
-    ctx.fillStyle = '#070b14';
-    ctx.fillRect(0, 0, 512, 340);
+    // Dark sleek background
+    ctx.fillStyle = '#080d1a';
+    ctx.fillRect(0, 0, 768, 512);
 
-    // Frame
+    // Border
     ctx.strokeStyle = '#0284c7';
     ctx.lineWidth = 3;
-    ctx.strokeRect(6, 6, 500, 328);
+    ctx.strokeRect(10, 10, 748, 492);
 
-    // Top Header Banner
-    ctx.fillStyle = '#0c2340';
-    ctx.fillRect(10, 10, 492, 45);
+    // Header bar
+    ctx.fillStyle = '#0c1b33';
+    ctx.fillRect(16, 16, 736, 60);
     ctx.fillStyle = '#38bdf8';
-    ctx.font = 'bold 20px monospace';
+    ctx.font = '900 28px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('A* NAVIGATION COMPUTATION SYSTEM', 256, 40);
+    ctx.fillText('A* ANALYSIS TERMINAL', 384, 56);
 
-    // Formula Section
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(20, 68, 472, 60);
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(20, 68, 472, 60);
+    ctx.textAlign = 'left';
 
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 24px monospace';
-    ctx.fillText('f(n) = g(n) + h(n)', 256, 106);
+    if (stageNumber === 1) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText('CURRENT NODE: A', 50, 120);
 
-    // Active Mission State
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText(`STAGE ${stageNumber} OF 3: FRONTIER SELECTION`, 256, 155);
+      // Node choices
+      const lines = [
+        { label: 'NODE B', g: 2, h: 6, f: 8 },
+        { label: 'NODE C', g: 4, h: 3, f: 7 },
+        { label: 'NODE D', g: 3, h: 7, f: 10 },
+      ];
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Evaluate candidate nodes in the chamber.', 256, 185);
-    ctx.fillText('Physically walk into the circle with the lowest f(n).', 256, 210);
+      lines.forEach((item, idx) => {
+        const y = 175 + idx * 68;
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(50, y - 30, 668, 54);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(50, y - 30, 668, 54);
 
-    // Status bar at bottom
-    ctx.fillStyle = '#042f2e';
-    ctx.fillRect(20, 240, 472, 75);
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText(item.label, 70, y + 6);
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText(`g = ${item.g}`, 260, y + 6);
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText(`h = ${item.h}`, 420, y + 6);
+
+        ctx.fillStyle = '#34d399';
+        ctx.fillText(`f = ${item.f}`, 580, y + 6);
+      });
+    } else if (stageNumber === 2) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText('CURRENT NODE: C', 50, 120);
+
+      const lines = [
+        { label: 'NODE E', g: 5, h: 4, f: 9 },
+        { label: 'NODE F', g: 6, h: 2, f: 8 },
+        { label: 'NODE G', g: 4, h: 6, f: 10 },
+      ];
+
+      lines.forEach((item, idx) => {
+        const y = 175 + idx * 68;
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(50, y - 30, 668, 54);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(50, y - 30, 668, 54);
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText(item.label, 70, y + 6);
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText(`g = ${item.g}`, 260, y + 6);
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText(`h = ${item.h}`, 420, y + 6);
+
+        ctx.fillStyle = '#34d399';
+        ctx.fillText(`f = ${item.f}`, 580, y + 6);
+      });
+    } else if (stageNumber === 3) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText('CURRENT NODE: F', 50, 115);
+
+      const lines = [
+        { label: 'NODE H', g: 8, h: 4, f: 12 },
+        { label: 'NODE I', g: 11, h: 1, f: 12 },
+        { label: 'NODE J', g: 7, h: 3, f: 10 },
+        { label: 'NODE K', g: 9, h: 5, f: 14 },
+      ];
+
+      lines.forEach((item, idx) => {
+        const y = 160 + idx * 56;
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(50, y - 26, 668, 46);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(50, y - 26, 668, 46);
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 21px monospace';
+        ctx.fillText(item.label, 70, y + 6);
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText(`g = ${item.g}`, 260, y + 6);
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText(`h = ${item.h}`, 420, y + 6);
+
+        ctx.fillStyle = '#34d399';
+        ctx.fillText(`f = ${item.f}`, 580, y + 6);
+      });
+    } else {
+      ctx.fillStyle = '#34d399';
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText('A* SEARCH COMPLETE', 50, 130);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '19px monospace';
+      ctx.fillText('OPTIMAL ROUTE DISCOVERED:', 50, 180);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText('START ──> C ──> F ──> J ──> TARGET', 50, 230);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText('Total Evaluation: f(TARGET) = 7 + 3 = 10', 50, 290);
+
+      ctx.fillStyle = '#f87171';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText('Proceed to the RED TARGET node.', 50, 350);
+    }
+
+    // Bottom formula reminder
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#052e16';
+    ctx.fillRect(50, 420, 668, 60);
     ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(20, 240, 472, 75);
+    ctx.strokeRect(50, 420, 668, 60);
 
     ctx.fillStyle = '#34d399';
-    ctx.font = 'bold 15px monospace';
-    ctx.fillText('A* PRINCIPLE:', 256, 268);
-    ctx.fillStyle = '#a7f3d0';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Balances past cost g(n) with estimated remaining cost h(n)', 256, 296);
+    ctx.font = 'bold 17px monospace';
+    ctx.fillText('Choose the node with the lowest f(n).  f(n) = g(n) + h(n)', 384, 456);
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
     return tex;
+  }
+
+  public createHeuristicNodeBadgeTexture(
+    nodeName: string,
+    g: number,
+    h: number,
+    f: number,
+    status: 'start' | 'target' | 'normal' | 'correct' | 'wrong' = 'normal'
+  ): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 180;
+    const ctx = canvas.getContext('2d')!;
+
+    // Clean dark glass surface
+    ctx.fillStyle = 'rgba(7, 11, 22, 0.95)';
+    ctx.fillRect(0, 0, 512, 180);
+
+    let borderColor = '#0284c7';
+    let titleColor = '#ffffff';
+
+    if (status === 'start') {
+      borderColor = '#10b981';
+      titleColor = '#34d399';
+    } else if (status === 'target') {
+      borderColor = '#ef4444';
+      titleColor = '#f87171';
+    } else if (status === 'correct') {
+      borderColor = '#10b981';
+      titleColor = '#34d399';
+    } else if (status === 'wrong') {
+      borderColor = '#ef4444';
+      titleColor = '#f87171';
+    }
+
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(4, 4, 504, 172);
+
+    ctx.textAlign = 'center';
+
+    if (status === 'start') {
+      ctx.fillStyle = titleColor;
+      ctx.font = '900 44px monospace';
+      ctx.fillText(nodeName, 256, 75);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText('START  ·  g = 0', 256, 135);
+    } else if (status === 'target') {
+      ctx.fillStyle = titleColor;
+      ctx.font = '900 44px monospace';
+      ctx.fillText(nodeName, 256, 75);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText('TARGET  ·  h = 0', 256, 135);
+    } else {
+      // Node Name Header
+      ctx.fillStyle = titleColor;
+      ctx.font = '900 38px monospace';
+      ctx.fillText(nodeName, 256, 58);
+
+      // Subtle horizontal divider
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(32, 80);
+      ctx.lineTo(480, 80);
+      ctx.stroke();
+
+      // Compact g / h / f metrics row
+      ctx.font = 'bold 30px monospace';
+
+      // g
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillText(`g ${g}`, 110, 135);
+
+      // divider
+      ctx.fillStyle = '#475569';
+      ctx.fillText('|', 200, 135);
+
+      // h
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(`h ${h}`, 260, 135);
+
+      // divider
+      ctx.fillStyle = '#475569';
+      ctx.fillText('|', 340, 135);
+
+      // f
+      ctx.fillStyle = '#34d399';
+      ctx.fillText(`f ${f}`, 410, 135);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  // Deprecated alias to maintain compatibility
+  public createHeuristicNodeTexture(
+    nodeName: string,
+    g: number,
+    h: number,
+    f: number,
+    status: 'start' | 'target' | 'normal' | 'correct' | 'wrong' = 'normal'
+  ): THREE.CanvasTexture {
+    return this.createHeuristicNodeBadgeTexture(nodeName, g, h, f, status);
   }
 
   public buildHeuristicChamberLevel1(): EscapeRoomEnvironment {
@@ -8005,85 +8122,70 @@ export class EscapeRoomBuilder {
     const shortestPathBeams = new THREE.Group();
     this.scene.add(shortestPathBeams);
 
+    const stageGroups = new Map<number, THREE.Group>();
+    const stage1Group = new THREE.Group();
+    const stage2Group = new THREE.Group();
+    const stage3Group = new THREE.Group();
+    this.scene.add(stage1Group);
+    this.scene.add(stage2Group);
+    this.scene.add(stage3Group);
+    stageGroups.set(1, stage1Group);
+    stageGroups.set(2, stage2Group);
+    stageGroups.set(3, stage3Group);
+
     // -------------------------------------------------------------------------
-    // 1. LIGHTING SETUP (Futuristic Navigation Laboratory)
+    // 1. RESTRAINED & POLISHED LIGHTING (Futuristic Minimalist Laboratory)
     // -------------------------------------------------------------------------
-    const ambientLight = new THREE.AmbientLight(0x0f172a, 1.2);
+    const ambientLight = new THREE.AmbientLight(0x0f172a, 1.4);
     this.scene.add(ambientLight);
 
-    const mainLight = new THREE.PointLight(0x38bdf8, 2.5, 35);
-    mainLight.position.set(0, 6.0, 0);
-    this.scene.add(mainLight);
+    // Soft architectural downlights
+    const downlight1 = new THREE.PointLight(0x38bdf8, 1.8, 26);
+    downlight1.position.set(-6, 5.5, 0);
+    this.scene.add(downlight1);
 
-    const startAreaLight = new THREE.PointLight(0x10b981, 2.2, 16);
-    startAreaLight.position.set(-13, 4.5, 0);
-    this.scene.add(startAreaLight);
+    const downlight2 = new THREE.PointLight(0x38bdf8, 1.8, 26);
+    downlight2.position.set(8, 5.5, 0);
+    this.scene.add(downlight2);
 
-    const consoleAreaLight = new THREE.PointLight(0xf59e0b, 2.2, 15);
-    consoleAreaLight.position.set(-11, 4.0, 4.0);
-    this.scene.add(consoleAreaLight);
-
-    const candidateStage1Light = new THREE.PointLight(0x38bdf8, 2.0, 18);
-    candidateStage1Light.position.set(-6.5, 5.0, 0);
-    this.scene.add(candidateStage1Light);
-
-    const candidateStage2Light = new THREE.PointLight(0x38bdf8, 2.0, 18);
-    candidateStage2Light.position.set(1.0, 5.0, 0);
-    this.scene.add(candidateStage2Light);
-
-    const candidateStage3Light = new THREE.PointLight(0x38bdf8, 2.2, 20);
-    candidateStage3Light.position.set(8.5, 5.0, 0);
-    this.scene.add(candidateStage3Light);
-
-    const targetAreaLight = new THREE.PointLight(0xef4444, 2.8, 20);
-    targetAreaLight.position.set(15.0, 5.0, 0);
-    this.scene.add(targetAreaLight);
+    const mainLight = downlight1;
 
     // -------------------------------------------------------------------------
-    // 2. ROOM ARCHITECTURE & BOUNDARIES (Width: 40m, Depth: 24m, Height: 7.5m)
+    // 2. ROOM ARCHITECTURE (Spacious & Clean: W = 38m, D = 22m, H = 6.5m)
     // -------------------------------------------------------------------------
-    const roomWidth = 40;  // X: -18 to +22
-    const roomDepth = 24;  // Z: -12 to +12
-    const roomHeight = 7.5;
+    const roomWidth = 38;  // X: -16.5 to +21.5
+    const roomDepth = 22;  // Z: -11 to +11
+    const roomHeight = 6.5;
+    const centerX = 2.5;
 
-    // Floor with custom holographic laser grid
+    // Floor with sleek dark composite grid
     const floorTex = this.createHeuristicFloorGridTexture();
     const floorMat = new THREE.MeshStandardMaterial({
       map: floorTex,
       metalness: 0.85,
-      roughness: 0.2,
+      roughness: 0.25,
       emissive: 0x0284c7,
-      emissiveIntensity: 0.08,
+      emissiveIntensity: 0.04,
     });
     const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(roomWidth, roomDepth), floorMat);
     floorMesh.rotation.x = -Math.PI / 2;
-    floorMesh.position.set(2, 0, 0);
+    floorMesh.position.set(centerX, 0, 0);
     floorMesh.receiveShadow = true;
     this.scene.add(floorMesh);
 
-    // Floor Collider
-    this.addBoxCollider(new THREE.Vector3(-20, -1, -14), new THREE.Vector3(24, 0, 14));
+    // Floor Collider (Floor plane only, leaving room interior completely clear)
+    this.addBoxCollider(new THREE.Vector3(-18, -1, -13), new THREE.Vector3(24, 0, 13));
 
-    // Ceiling with recessed dark carbon coffers
+    // Ceiling
     const ceilingMat = new THREE.MeshStandardMaterial({
-      color: 0x090d16,
+      color: 0x080d18,
       metalness: 0.9,
       roughness: 0.4,
     });
     const ceilingMesh = new THREE.Mesh(new THREE.PlaneGeometry(roomWidth, roomDepth), ceilingMat);
     ceilingMesh.rotation.x = Math.PI / 2;
-    ceilingMesh.position.set(2, roomHeight, 0);
+    ceilingMesh.position.set(centerX, roomHeight, 0);
     this.scene.add(ceilingMesh);
-
-    // Ceiling Neon Tracks
-    for (let x = -14; x <= 18; x += 8) {
-      const neonTrack = new THREE.Mesh(
-        new THREE.BoxGeometry(0.3, 0.1, roomDepth - 2),
-        new THREE.MeshBasicMaterial({ color: 0x0284c7 })
-      );
-      neonTrack.position.set(x, roomHeight - 0.05, 0);
-      this.scene.add(neonTrack);
-    }
 
     // Outer Laboratory Walls (North, South, West, East)
     const wallTex = this.createHeuristicWallPanelTexture();
@@ -8093,125 +8195,100 @@ export class EscapeRoomBuilder {
       roughness: 0.35,
     });
 
-    // North Wall (Z = 12)
-    const northWall = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, roomHeight, 1), wallMat);
-    northWall.position.set(2, roomHeight / 2, 12.5);
+    // North Wall (Z = 11.0)
+    const northWall = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, roomHeight, 0.8), wallMat);
+    northWall.position.set(centerX, roomHeight / 2, 11.4);
     this.scene.add(northWall);
-    this.addBoxCollider(new THREE.Vector3(-19, 0, 12), new THREE.Vector3(23, roomHeight, 13.5));
+    this.addBoxCollider(new THREE.Vector3(-18, 0, 11.0), new THREE.Vector3(23, roomHeight, 12.0));
 
-    // South Wall (Z = -12)
-    const southWall = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, roomHeight, 1), wallMat);
-    southWall.position.set(2, roomHeight / 2, -12.5);
+    // South Wall (Z = -11.0)
+    const southWall = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, roomHeight, 0.8), wallMat);
+    southWall.position.set(centerX, roomHeight / 2, -11.4);
     this.scene.add(southWall);
-    this.addBoxCollider(new THREE.Vector3(-19, 0, -13.5), new THREE.Vector3(23, roomHeight, -12));
+    this.addBoxCollider(new THREE.Vector3(-18, 0, -12.0), new THREE.Vector3(23, roomHeight, -11.0));
 
-    // West Wall (X = -18)
-    const westWall = new THREE.Mesh(new THREE.BoxGeometry(1, roomHeight, roomDepth), wallMat);
-    westWall.position.set(-18.5, roomHeight / 2, 0);
+    // West Wall (X = -16.5)
+    const westWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, roomHeight, roomDepth), wallMat);
+    westWall.position.set(-16.9, roomHeight / 2, 0);
     this.scene.add(westWall);
-    this.addBoxCollider(new THREE.Vector3(-19.5, 0, -13), new THREE.Vector3(-18, roomHeight, 13));
+    this.addBoxCollider(new THREE.Vector3(-17.8, 0, -12), new THREE.Vector3(-16.4, roomHeight, 12));
 
-    // East Wall with Exit Doorway Opening
-    // Left segment (Z: 3.5 to 12)
-    const eastWallNorth = new THREE.Mesh(new THREE.BoxGeometry(1, roomHeight, 8.5), wallMat);
-    eastWallNorth.position.set(21.5, roomHeight / 2, 7.75);
+    // East Wall with Exit Doorway (X = +21.0)
+    const eastWallNorth = new THREE.Mesh(new THREE.BoxGeometry(0.8, roomHeight, 8.2), wallMat);
+    eastWallNorth.position.set(21.4, roomHeight / 2, 6.9);
     this.scene.add(eastWallNorth);
-    this.addBoxCollider(new THREE.Vector3(21, 0, 3.5), new THREE.Vector3(22.5, roomHeight, 13));
+    this.addBoxCollider(new THREE.Vector3(20.8, 0, 2.8), new THREE.Vector3(22.0, roomHeight, 12));
 
-    // Right segment (Z: -12 to -3.5)
-    const eastWallSouth = new THREE.Mesh(new THREE.BoxGeometry(1, roomHeight, 8.5), wallMat);
-    eastWallSouth.position.set(21.5, roomHeight / 2, -7.75);
+    const eastWallSouth = new THREE.Mesh(new THREE.BoxGeometry(0.8, roomHeight, 8.2), wallMat);
+    eastWallSouth.position.set(21.4, roomHeight / 2, -6.9);
     this.scene.add(eastWallSouth);
-    this.addBoxCollider(new THREE.Vector3(21, 0, -13), new THREE.Vector3(22.5, roomHeight, -3.5));
+    this.addBoxCollider(new THREE.Vector3(20.8, 0, -12), new THREE.Vector3(22.0, roomHeight, -2.8));
 
-    // Lintel above doorway (Y: 4.8 to 7.5)
-    const eastWallLintel = new THREE.Mesh(new THREE.BoxGeometry(1, roomHeight - 4.8, 7.0), wallMat);
-    eastWallLintel.position.set(21.5, 4.8 + (roomHeight - 4.8) / 2, 0);
+    const eastWallLintel = new THREE.Mesh(new THREE.BoxGeometry(0.8, roomHeight - 4.5, 5.6), wallMat);
+    eastWallLintel.position.set(21.4, 4.5 + (roomHeight - 4.5) / 2, 0);
     this.scene.add(eastWallLintel);
 
-    // Glass Observation Windows with Space Nebula Backdrop
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0x0ea5e9,
-      transmission: 0.6,
-      opacity: 0.7,
-      transparent: true,
-      roughness: 0.1,
-      metalness: 0.1,
-      ior: 1.5,
-    });
+    // -------------------------------------------------------------------------
+    // 3. ONLY ONE MAIN WALL DISPLAY (Mounted flush on North Wall)
+    // -------------------------------------------------------------------------
+    const mainWallTex = this.createHeuristicMainWallTexture();
+    const mainWallMat = new THREE.MeshBasicMaterial({ map: mainWallTex });
+    const mainWallScreen = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 3.2), mainWallMat);
+    mainWallScreen.position.set(0, 3.4, 10.95);
+    mainWallScreen.rotation.y = Math.PI; // Faces South toward the room
+    this.scene.add(mainWallScreen);
 
-    const windowPositions = [
-      { x: -8, z: 12.0 },
-      { x: 4, z: 12.0 },
-      { x: -8, z: -12.0 },
-      { x: 4, z: -12.0 },
-    ];
-    windowPositions.forEach((pos) => {
-      const winFrame = new THREE.Mesh(new THREE.BoxGeometry(6, 3.2, 0.4), glassMat);
-      winFrame.position.set(pos.x, 3.5, pos.z);
-      this.scene.add(winFrame);
-    });
+    // Sleek border bezel for the single wall display
+    const bezelMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 });
+    const bezelMesh = new THREE.Mesh(new THREE.BoxGeometry(6.6, 3.4, 0.08), bezelMat);
+    bezelMesh.position.set(0, 3.4, 11.0);
+    this.scene.add(bezelMesh);
 
     // -------------------------------------------------------------------------
-    // 3. CENTRAL A* NAVIGATION CONSOLE (Interactive at X: -11.0, Z: 4.2)
+    // 4. ONE INTERACTIVE A* ANALYSIS TERMINAL (Placed beside puzzle at X: -10.5, Z: 5.2)
     // -------------------------------------------------------------------------
     const consoleGroup = new THREE.Group();
-    consoleGroup.position.set(-11.0, 0, 4.2);
+    consoleGroup.position.set(-10.5, 0, 5.2);
+    consoleGroup.rotation.y = -Math.PI / 4; // Angled cleanly toward player entering from -X
 
-    // Pedestal Base
+    // Compact Pedestal Base
     const consolePedestal = new THREE.Mesh(
-      new THREE.BoxGeometry(2.4, 1.3, 1.4),
+      new THREE.BoxGeometry(1.4, 1.1, 0.6),
       new THREE.MeshStandardMaterial({ color: 0x0b1329, metalness: 0.9, roughness: 0.2 })
     );
-    consolePedestal.position.y = 0.65;
+    consolePedestal.position.y = 0.55;
     consoleGroup.add(consolePedestal);
 
-    // Angled Console Display Screen
+    // Holographic Display Screen (No floating diamond!)
     const consoleTex = this.createHeuristicConsoleTexture(1);
     const consoleScreenMat = new THREE.MeshStandardMaterial({
       map: consoleTex,
       roughness: 0.15,
       emissive: 0x0284c7,
-      emissiveIntensity: 0.7,
+      emissiveIntensity: 0.5,
     });
-    const consoleScreen = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.4), consoleScreenMat);
+    const consoleScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), consoleScreenMat);
     consoleScreen.name = 'heuristicConsoleScreen';
-    consoleScreen.position.set(0, 1.6, -0.1);
-    consoleScreen.rotation.x = 0.35;
-    consoleScreen.rotation.y = Math.PI;
+    consoleScreen.position.set(0, 1.45, 0.02);
+    consoleScreen.rotation.x = -0.2; // Slight upward tilt for easy reading
     consoleGroup.add(consoleScreen);
 
-    // Floating 3D Holographic Diamond above Console
-    const holoDiamond = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.6, 0),
-      new THREE.MeshPhysicalMaterial({
-        color: 0xf59e0b,
-        emissive: 0xf59e0b,
-        emissiveIntensity: 0.8,
-        transparent: true,
-        opacity: 0.75,
-        wireframe: true,
-      })
-    );
-    holoDiamond.position.set(0, 2.7, 0);
-    consoleGroup.add(holoDiamond);
-    this.animatedMeshes.push(holoDiamond);
-
     this.scene.add(consoleGroup);
-    this.addBoxCollider(new THREE.Vector3(-12.4, 0, 3.3), new THREE.Vector3(-9.6, 2.2, 5.1));
+    // Tight collider around only the pedestal base
+    this.addBoxCollider(new THREE.Vector3(-11.4, 0, 4.4), new THREE.Vector3(-9.6, 1.6, 6.0));
 
     this.interactiveObjects.push({
       id: 'heuristic_console',
       type: 'security_console',
-      name: 'A* NAVIGATION CONSOLE',
+      name: 'A* ANALYSIS TERMINAL',
       prompt: '[E] ACCESS A* NAVIGATION SYSTEM',
-      position: [-11.0, 1.5, 4.2],
-      hitRadius: 3.0,
+      position: [-10.5, 1.4, 5.2],
+      hitRadius: 2.8,
       mesh: consoleGroup,
     });
 
     // -------------------------------------------------------------------------
-    // 4. CANDIDATE NODES & 3D PHYSICAL CIRCLES
+    // 5. CANDIDATE NODES & CLEAN PHYSICAL FLOOR CIRCLES
     // -------------------------------------------------------------------------
     interface NodeSetupDef {
       id: string;
@@ -8222,123 +8299,127 @@ export class EscapeRoomBuilder {
       f: number;
       x: number;
       z: number;
+      stage: 0 | 1 | 2 | 3 | 5;
       status: 'start' | 'target' | 'normal';
     }
 
     const nodeDefs: NodeSetupDef[] = [
-      // Start & Origin
-      { id: 'START', name: 'START', label: 'START', g: 0, h: 7, f: 7, x: -15, z: 0, status: 'start' },
-      { id: 'A', name: 'NODE A', label: 'A', g: 0, h: 7, f: 7, x: -11, z: 0, status: 'start' },
+      // Start
+      { id: 'START', name: 'START', label: 'START', g: 0, h: 7, f: 7, x: -13.0, z: 0.0, stage: 0, status: 'start' },
 
       // Stage 1 Candidates (C is correct)
-      { id: 'B', name: 'NODE B', label: 'B', g: 2, h: 6, f: 8, x: -6.5, z: 4.8, status: 'normal' },
-      { id: 'C', name: 'NODE C', label: 'C', g: 4, h: 3, f: 7, x: -6.5, z: 0.0, status: 'normal' },
-      { id: 'D', name: 'NODE D', label: 'D', g: 3, h: 7, f: 10, x: -6.5, z: -4.8, status: 'normal' },
+      { id: 'B', name: 'NODE B', label: 'B', g: 2, h: 6, f: 8, x: -6.5, z: 3.6, stage: 1, status: 'normal' },
+      { id: 'C', name: 'NODE C', label: 'C', g: 4, h: 3, f: 7, x: -6.5, z: 0.0, stage: 1, status: 'normal' },
+      { id: 'D', name: 'NODE D', label: 'D', g: 3, h: 7, f: 10, x: -6.5, z: -3.6, stage: 1, status: 'normal' },
 
       // Stage 2 Candidates (F is correct)
-      { id: 'E', name: 'NODE E', label: 'E', g: 5, h: 4, f: 9, x: 1.0, z: 4.8, status: 'normal' },
-      { id: 'F', name: 'NODE F', label: 'F', g: 6, h: 2, f: 8, x: 1.0, z: 0.0, status: 'normal' },
-      { id: 'G', name: 'NODE G', label: 'G', g: 4, h: 6, f: 10, x: 1.0, z: -4.8, status: 'normal' },
+      { id: 'E', name: 'NODE E', label: 'E', g: 5, h: 4, f: 9, x: 0.5, z: 3.6, stage: 2, status: 'normal' },
+      { id: 'F', name: 'NODE F', label: 'F', g: 6, h: 2, f: 8, x: 0.5, z: 0.0, stage: 2, status: 'normal' },
+      { id: 'G', name: 'NODE G', label: 'G', g: 4, h: 6, f: 10, x: 0.5, z: -3.6, stage: 2, status: 'normal' },
 
       // Stage 3 Candidates (J is correct)
-      { id: 'H', name: 'NODE H', label: 'H', g: 8, h: 4, f: 12, x: 8.5, z: 6.6, status: 'normal' },
-      { id: 'I', name: 'NODE I', label: 'I', g: 11, h: 1, f: 12, x: 8.5, z: 2.2, status: 'normal' },
-      { id: 'J', name: 'NODE J', label: 'J', g: 7, h: 3, f: 10, x: 8.5, z: -2.2, status: 'normal' },
-      { id: 'K', name: 'NODE K', label: 'K', g: 9, h: 5, f: 14, x: 8.5, z: -6.6, status: 'normal' },
+      { id: 'H', name: 'NODE H', label: 'H', g: 8, h: 4, f: 12, x: 7.5, z: 4.8, stage: 3, status: 'normal' },
+      { id: 'I', name: 'NODE I', label: 'I', g: 11, h: 1, f: 12, x: 7.5, z: 1.6, stage: 3, status: 'normal' },
+      { id: 'J', name: 'NODE J', label: 'J', g: 7, h: 3, f: 10, x: 7.5, z: -1.6, stage: 3, status: 'normal' },
+      { id: 'K', name: 'NODE K', label: 'K', g: 9, h: 5, f: 14, x: 7.5, z: -4.8, stage: 3, status: 'normal' },
 
-      // Final Target
-      { id: 'TARGET', name: 'RED TARGET', label: 'TARGET', g: 10, h: 0, f: 10, x: 15.0, z: 0.0, status: 'target' },
+      // Destination Target
+      { id: 'TARGET', name: 'RED TARGET', label: 'TARGET', g: 10, h: 0, f: 10, x: 14.5, z: 0.0, stage: 5, status: 'target' },
     ];
 
     nodeDefs.forEach((def) => {
       const isStart = def.status === 'start';
       const isTarget = def.status === 'target';
 
-      const padRadius = isTarget ? 2.0 : 1.6;
-      const baseColor = isTarget ? 0x450a0a : (isStart ? 0x064e3b : 0x0b172a);
-      const ringColor = isTarget ? 0xef4444 : (isStart ? 0x10b981 : 0x0284c7);
-      const emissiveIntensity = isTarget ? 0.9 : (isStart ? 0.7 : 0.3);
+      const padRadius = isTarget ? 1.7 : 1.45;
+      const baseColor = isTarget ? 0x2d0606 : (isStart ? 0x064e3b : 0x081326);
+      const ringColor = isTarget ? 0xb91c1c : (isStart ? 0x10b981 : 0x0284c7);
+      const emissiveIntensity = isTarget ? 0.3 : (isStart ? 0.6 : 0.25);
 
-      // 3D Physical Floor Pad (Large glowing cylinder)
+      // Low-profile 3D Floor Disc (sits naturally flat on floor, no thick blocks)
       const padMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(padRadius, padRadius + 0.15, 0.08, 36),
+        new THREE.CylinderGeometry(padRadius, padRadius, 0.03, 36),
         new THREE.MeshStandardMaterial({
           color: baseColor,
-          metalness: 0.85,
-          roughness: 0.2,
+          metalness: 0.8,
+          roughness: 0.3,
           emissive: ringColor,
           emissiveIntensity,
         })
       );
-      padMesh.position.set(def.x, 0.04, def.z);
-      this.scene.add(padMesh);
+      padMesh.position.set(def.x, 0.015, def.z);
+      padMesh.receiveShadow = true;
 
-      // Concentric Outer Glowing Energy Ring
+      // Outer Glowing Ring on floor
       const ringMesh = new THREE.Mesh(
-        new THREE.RingGeometry(padRadius * 0.82, padRadius * 0.98, 36),
+        new THREE.RingGeometry(padRadius * 0.85, padRadius * 0.98, 36),
         new THREE.MeshBasicMaterial({ color: ringColor, side: THREE.DoubleSide })
       );
       ringMesh.rotation.x = -Math.PI / 2;
-      ringMesh.position.set(def.x, 0.09, def.z);
-      this.scene.add(ringMesh);
+      ringMesh.position.set(def.x, 0.032, def.z);
 
-      // Overhead Floating Holographic Billboard displaying numbers with high contrast
-      const billboardTex = this.createHeuristicNodeTexture(
+      // Compact, sleek informative Badge (Faces West towards approaching player)
+      const badgeTex = this.createHeuristicNodeBadgeTexture(
         def.name,
         def.g,
         def.h,
         def.f,
         def.status
       );
-      const billboardWidth = 2.4;
-      const billboardHeight = 1.5;
-      const billboardMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(billboardWidth, billboardHeight),
+      const badgeWidth = 1.3;
+      const badgeHeight = 0.46;
+      const badgeMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(badgeWidth, badgeHeight),
         new THREE.MeshBasicMaterial({
-          map: billboardTex,
+          map: badgeTex,
           transparent: true,
           side: THREE.DoubleSide,
         })
       );
-      billboardMesh.position.set(def.x, 2.5, def.z);
-      billboardMesh.name = `heuristicBillboard_${def.id}`;
-      this.scene.add(billboardMesh);
-      this.animatedMeshes.push(billboardMesh);
+      // Positioned at height 1.15m facing West (-X)
+      badgeMesh.position.set(def.x, 1.15, def.z);
+      badgeMesh.rotation.y = -Math.PI / 2;
+      badgeMesh.name = `heuristicBadge_${def.id}`;
 
-      // Floating Holographic Diamond / Crystal
-      const crystalGeometry = isTarget
-        ? new THREE.OctahedronGeometry(0.7, 0)
-        : new THREE.OctahedronGeometry(0.4, 0);
-      const crystalMesh = new THREE.Mesh(
-        crystalGeometry,
-        new THREE.MeshPhysicalMaterial({
-          color: ringColor,
-          emissive: ringColor,
-          emissiveIntensity: 0.8,
-          transparent: true,
-          opacity: 0.8,
-        })
+      // Slim floor stanchion supporting the badge
+      const stanchion = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.025, 0.025, 0.95, 12),
+        new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.2 })
       );
-      crystalMesh.position.set(def.x, 1.4, def.z);
-      crystalMesh.name = `heuristicCrystal_${def.id}`;
-      this.scene.add(crystalMesh);
-      this.animatedMeshes.push(crystalMesh);
+      stanchion.position.set(def.x, 0.5, def.z);
 
-      // Local Halo Point Light
-      const haloLight = new THREE.PointLight(ringColor, isTarget ? 2.5 : 1.4, 7.5);
-      haloLight.position.set(def.x, 1.8, def.z);
-      this.scene.add(haloLight);
+      // Soft halo point light
+      const haloLight = new THREE.PointLight(ringColor, isTarget ? 1.0 : (isStart ? 1.5 : 0.8), 5.5);
+      haloLight.position.set(def.x, 1.0, def.z);
+
+      // Assemble node group
+      const nodeObjGroup = new THREE.Group();
+      nodeObjGroup.add(padMesh);
+      nodeObjGroup.add(ringMesh);
+      nodeObjGroup.add(badgeMesh);
+      nodeObjGroup.add(stanchion);
+      nodeObjGroup.add(haloLight);
+
+      // Assign to respective stage group for clean dynamic visibility
+      if (def.stage === 1) {
+        stage1Group.add(nodeObjGroup);
+      } else if (def.stage === 2) {
+        stage2Group.add(nodeObjGroup);
+      } else if (def.stage === 3) {
+        stage3Group.add(nodeObjGroup);
+      } else {
+        this.scene.add(nodeObjGroup);
+      }
 
       mazeNodesMap.set(def.id, {
         id: def.id,
         tileMesh: padMesh,
         ringMesh: ringMesh,
-        markerMesh: crystalMesh,
         haloLight: haloLight,
-        billboardMesh: billboardMesh,
+        billboardMesh: badgeMesh,
       });
 
-      // Interactive object entry for physical trigger / inspection
+      // Physical interaction entry
       this.interactiveObjects.push({
         id: `heuristic_node_${def.id}`,
         type: 'heuristic_node',
@@ -8346,31 +8427,16 @@ export class EscapeRoomBuilder {
         prompt: isTarget
           ? '[E] ENGAGE RED TARGET BEACON'
           : `[STEP IN] ${def.name}: g=${def.g}, h=${def.h}, f=${def.f}`,
-        position: [def.x, 1.2, def.z],
-        hitRadius: 2.2,
+        position: [def.x, 1.0, def.z],
+        hitRadius: 2.0,
         mesh: padMesh,
       });
     });
 
     // -------------------------------------------------------------------------
-    // 5. CONNECTING ENERGY CONDUITS & SHORTEST PATH HIGHLIGHT
+    // 6. THIN, SUBTLE GRAPH CONNECTIONS (ONLY between actual connected nodes)
     // -------------------------------------------------------------------------
-    const connections: [string, string][] = [
-      ['START', 'A'],
-      ['A', 'B'],
-      ['A', 'C'],
-      ['A', 'D'],
-      ['C', 'E'],
-      ['C', 'F'],
-      ['C', 'G'],
-      ['F', 'H'],
-      ['F', 'I'],
-      ['F', 'J'],
-      ['F', 'K'],
-      ['J', 'TARGET'],
-    ];
-
-    connections.forEach(([fromId, toId]) => {
+    const addSubtleConduit = (fromId: string, toId: string, parentGroup: THREE.Group) => {
       const fromNode = nodeDefs.find((n) => n.id === fromId)!;
       const toNode = nodeDefs.find((n) => n.id === toId)!;
 
@@ -8379,27 +8445,48 @@ export class EscapeRoomBuilder {
       const length = Math.sqrt(dx * dx + dz * dz);
       const angle = Math.atan2(dz, dx);
 
-      // Embedded floor conduit strip
-      const conduitMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(length, 0.4),
+      const lineMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(length, 0.12),
         new THREE.MeshStandardMaterial({
           color: 0x071526,
           emissive: 0x0284c7,
-          emissiveIntensity: 0.25,
+          emissiveIntensity: 0.35,
           metalness: 0.9,
           roughness: 0.3,
         })
       );
-      conduitMesh.rotation.x = -Math.PI / 2;
-      conduitMesh.rotation.z = -angle;
-      conduitMesh.position.set((fromNode.x + toNode.x) / 2, 0.02, (fromNode.z + toNode.z) / 2);
-      this.scene.add(conduitMesh);
-    });
+      lineMesh.rotation.x = -Math.PI / 2;
+      lineMesh.rotation.z = -angle;
+      lineMesh.position.set((fromNode.x + toNode.x) / 2, 0.018, (fromNode.z + toNode.z) / 2);
+      parentGroup.add(lineMesh);
+    };
 
-    // Radiant Optimal A* Path Beams (Initially dim, glows brightly upon target discovery)
+    // Stage 1 connections (START to B, C, D)
+    addSubtleConduit('START', 'B', stage1Group);
+    addSubtleConduit('START', 'C', stage1Group);
+    addSubtleConduit('START', 'D', stage1Group);
+
+    // Stage 2 connections (C to E, F, G)
+    addSubtleConduit('C', 'E', stage2Group);
+    addSubtleConduit('C', 'F', stage2Group);
+    addSubtleConduit('C', 'G', stage2Group);
+
+    // Stage 3 connections (F to H, I, J, K)
+    addSubtleConduit('F', 'H', stage3Group);
+    addSubtleConduit('F', 'I', stage3Group);
+    addSubtleConduit('F', 'J', stage3Group);
+    addSubtleConduit('F', 'K', stage3Group);
+
+    // Initial Stage Visibilities (Stages 2 & 3 hidden initially to eliminate clutter)
+    stage1Group.visible = true;
+    stage2Group.visible = false;
+    stage3Group.visible = false;
+
+    // -------------------------------------------------------------------------
+    // 7. OPTIMAL SOLUTION ROUTE (Illuminated gently ONLY upon Stage 5 discovery)
+    // -------------------------------------------------------------------------
     const optimalSegments: [string, string][] = [
-      ['START', 'A'],
-      ['A', 'C'],
+      ['START', 'C'],
       ['C', 'F'],
       ['F', 'J'],
       ['J', 'TARGET'],
@@ -8414,37 +8501,38 @@ export class EscapeRoomBuilder {
       const length = Math.sqrt(dx * dx + dz * dz);
       const angle = Math.atan2(dz, dx);
 
-      const radiantBeam = new THREE.Mesh(
-        new THREE.BoxGeometry(length, 0.08, 0.5),
+      const beam = new THREE.Mesh(
+        new THREE.PlaneGeometry(length, 0.22),
         new THREE.MeshBasicMaterial({
           color: 0x00ffff,
           transparent: true,
           opacity: 0.85,
         })
       );
-      radiantBeam.rotation.y = -angle;
-      radiantBeam.position.set((fromNode.x + toNode.x) / 2, 0.06, (fromNode.z + toNode.z) / 2);
-      shortestPathBeams.add(radiantBeam);
+      beam.rotation.x = -Math.PI / 2;
+      beam.rotation.z = -angle;
+      beam.position.set((fromNode.x + toNode.x) / 2, 0.025, (fromNode.z + toNode.z) / 2);
+      shortestPathBeams.add(beam);
     });
 
     shortestPathBeams.visible = false;
 
     // -------------------------------------------------------------------------
-    // 6. HEURISTIC CHAMBER EXIT DOORWAY & SECURITY AIRLOCK
+    // 8. HEURISTIC CHAMBER EXIT DOORWAY (East Wall at X: 21.0, Z: 0.0)
     // -------------------------------------------------------------------------
     const exitDoorGroup = new THREE.Group();
     exitDoorGroup.position.set(21.0, 0, 0);
 
     // Archway Frame
     const archMat = new THREE.MeshStandardMaterial({
-      color: 0x111827,
+      color: 0x0f172a,
       metalness: 0.95,
       roughness: 0.2,
       emissive: 0x10b981,
-      emissiveIntensity: 0.25,
+      emissiveIntensity: 0.15,
     });
-    const archFrame = new THREE.Mesh(new THREE.BoxGeometry(1.2, 5.0, 6.2), archMat);
-    archFrame.position.y = 2.5;
+    const archFrame = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.6, 5.8), archMat);
+    archFrame.position.y = 2.3;
     exitDoorGroup.add(archFrame);
 
     // Dual Hydraulic Blast Door Sliders
@@ -8453,23 +8541,23 @@ export class EscapeRoomBuilder {
       metalness: 0.9,
       roughness: 0.3,
       emissive: 0x0284c7,
-      emissiveIntensity: 0.2,
+      emissiveIntensity: 0.15,
     });
 
-    const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.4, 2.6), doorMat);
+    const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4.2, 2.4), doorMat);
     leftDoor.name = 'vaultDoorLeft';
-    leftDoor.position.set(0, 2.3, 1.35);
+    leftDoor.position.set(0, 2.1, 1.25);
     exitDoorGroup.add(leftDoor);
 
-    const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.4, 2.6), doorMat);
+    const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4.2, 2.4), doorMat);
     rightDoor.name = 'vaultDoorRight';
-    rightDoor.position.set(0, 2.3, -1.35);
+    rightDoor.position.set(0, 2.1, -1.25);
     exitDoorGroup.add(rightDoor);
 
     // Door Status Lamp (Red while locked, green when unlocked)
-    const doorLamp = new THREE.PointLight(0xef4444, 2.5, 8);
+    const doorLamp = new THREE.PointLight(0xef4444, 2.0, 7);
     doorLamp.name = 'exitDoorStatusLight';
-    doorLamp.position.set(-0.6, 4.5, 0);
+    doorLamp.position.set(-0.5, 4.2, 0);
     exitDoorGroup.add(doorLamp);
 
     this.scene.add(exitDoorGroup);
@@ -8477,17 +8565,17 @@ export class EscapeRoomBuilder {
 
     // Door Collider (Blocks exit until TARGET reached)
     this.doorCollider = this.addBoxCollider(
-      new THREE.Vector3(20.5, 0, -2.8),
-      new THREE.Vector3(21.8, 4.8, 2.8)
+      new THREE.Vector3(20.4, 0, -2.6),
+      new THREE.Vector3(21.6, 4.5, 2.6)
     );
 
     this.interactiveObjects.push({
       id: 'heuristic_exit_door',
       type: 'exit_door',
       name: 'HEURISTIC CHAMBER EXIT',
-      prompt: 'Heuristic Chamber Exit Gateway (Locked — reach Target using A* to unlock)',
-      position: [20.5, 2.0, 0],
-      hitRadius: 3.5,
+      prompt: 'Heuristic Chamber Exit Gateway (Locked — reach Target to unlock)',
+      position: [20.8, 1.8, 0],
+      hitRadius: 3.2,
       mesh: exitDoorGroup,
     });
 
@@ -8502,6 +8590,7 @@ export class EscapeRoomBuilder {
       mainLight,
       mazeNodesMap,
       shortestPathBeams,
+      heuristicStageGroups: stageGroups,
     };
   }
 }

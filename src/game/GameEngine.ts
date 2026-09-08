@@ -122,11 +122,11 @@ export class GameEngine {
 
     // Set spawn point based on game & level
     if (this.currentGame === 'heuristic_chamber') {
-      this.playerPosition.set(-15, 0, 0);
-      this.currentCheckpoint.set(-15, 0, 0);
-      this.cameraYaw = -Math.PI / 2; // Face East (+X) towards the nodes and console
-      this.cameraPitch = 0.35;
-      this.cameraDistance = 4.8;
+      this.playerPosition.set(-13.0, 0, 0);
+      this.currentCheckpoint.set(-13.0, 0, 0);
+      this.cameraYaw = -Math.PI / 2; // Face East (+X) towards the nodes and chamber
+      this.cameraPitch = 0.26;
+      this.cameraDistance = 4.2;
     } else if (this.currentGame === 'search_maze') {
       if (this.currentLevel === 5) {
         this.playerPosition.set(-16.8, 0, 0);
@@ -245,13 +245,13 @@ export class GameEngine {
 
     // Reset player position & camera based on level and game
     if (this.currentGame === 'heuristic_chamber') {
-      this.currentCheckpoint.set(-15, 0, 0);
-      this.playerPosition.set(-15, 0, 0);
+      this.currentCheckpoint.set(-13.0, 0, 0);
+      this.playerPosition.set(-13.0, 0, 0);
       this.playerVelocity.set(0, 0, 0);
       this.isGrounded = true;
-      this.cameraYaw = -Math.PI / 2; // Face East (+X) towards the nodes and console
-      this.cameraPitch = 0.35;
-      this.cameraDistance = 4.8;
+      this.cameraYaw = -Math.PI / 2; // Face East (+X) towards the nodes and chamber
+      this.cameraPitch = 0.26;
+      this.cameraDistance = 4.2;
     } else if (this.currentGame === 'search_maze') {
       if (levelId === 5) {
         this.currentCheckpoint.set(-16.8, 0, 0);
@@ -343,6 +343,30 @@ export class GameEngine {
       if (collider.intersectsBox(playerBox)) {
         return true;
       }
+    }
+
+    // Heuristic Chamber specific room bounds (Room size: 38m x 22m, X: -16.5 to +21.5, Z: -11 to +11)
+    if (this.currentGame === 'heuristic_chamber') {
+      const minX = -16.0;
+      const maxX = 21.0;
+      const minZ = -10.4;
+      const maxZ = 10.4;
+
+      if (x < minX) return true;
+      if (z < minZ || z > maxZ) return true;
+
+      // East exit doorway at x = 20.4 between z = -2.5 and 2.5
+      if (this.isVaultOpening || this.isLevelExitCrossed || this.isTargetReached) {
+        if (Math.abs(z) < 2.5) {
+          if (x > 26.0) return true;
+          return false;
+        } else {
+          if (x > maxX) return true;
+        }
+      } else {
+        if (x > 20.4) return true;
+      }
+      return false;
     }
 
     // Search Maze specific room bounds
@@ -1018,6 +1042,42 @@ export class GameEngine {
     }
   }
 
+  public updateHeuristicChamberStage(stageNumber: number) {
+    this.updateHeuristicConsole(stageNumber);
+
+    if (this.roomEnv.heuristicStageGroups) {
+      const g1 = this.roomEnv.heuristicStageGroups.get(1);
+      const g2 = this.roomEnv.heuristicStageGroups.get(2);
+      const g3 = this.roomEnv.heuristicStageGroups.get(3);
+
+      if (stageNumber === 1) {
+        if (g1) g1.visible = true;
+        if (g2) g2.visible = false;
+        if (g3) g3.visible = false;
+        if (this.roomEnv.shortestPathBeams) this.roomEnv.shortestPathBeams.visible = false;
+      } else if (stageNumber === 2) {
+        if (g1) {
+          const badgeB = this.scene.getObjectByName('heuristicBadge_B');
+          const badgeD = this.scene.getObjectByName('heuristicBadge_D');
+          if (badgeB) badgeB.visible = false;
+          if (badgeD) badgeD.visible = false;
+        }
+        if (g2) g2.visible = true;
+        if (g3) g3.visible = false;
+      } else if (stageNumber === 3) {
+        if (g2) {
+          const badgeE = this.scene.getObjectByName('heuristicBadge_E');
+          const badgeG = this.scene.getObjectByName('heuristicBadge_G');
+          if (badgeE) badgeE.visible = false;
+          if (badgeG) badgeG.visible = false;
+        }
+        if (g3) g3.visible = true;
+      } else if (stageNumber >= 5) {
+        this.revealHeuristicTargetAndPath();
+      }
+    }
+  }
+
   public revealHeuristicTargetAndPath() {
     if (this.roomEnv.shortestPathBeams) {
       this.roomEnv.shortestPathBeams.visible = true;
@@ -1026,8 +1086,15 @@ export class GameEngine {
     if (targetRef) {
       this.spawnParticles(new THREE.Vector3(targetRef.tileMesh.position.x, 1.2, targetRef.tileMesh.position.z), 0xef4444, 40);
       if (targetRef.haloLight) {
-        targetRef.haloLight.intensity = 3.5;
+        targetRef.haloLight.intensity = 3.0;
+        targetRef.haloLight.color.setHex(0xef4444);
       }
+      const tileMat = targetRef.tileMesh.material as THREE.MeshStandardMaterial;
+      tileMat.color.setHex(0x500a0a);
+      tileMat.emissive.setHex(0xef4444);
+      tileMat.emissiveIntensity = 0.9;
+      const ringMat = targetRef.ringMesh.material as THREE.MeshBasicMaterial;
+      ringMat.color.setHex(0xef4444);
     }
   }
 
@@ -1385,16 +1452,16 @@ export class GameEngine {
       if (insideAnyNode && insideAnyNode !== this.activeEnteredCircleNodeId) {
         this.activeEnteredCircleNodeId = insideAnyNode;
         if (insideAnyNode === 'TARGET' && !this.isTargetReached) {
-          this.isTargetReached = true;
-          sound.playAccessGranted();
-          this.spawnParticles(new THREE.Vector3(15.0, 1.2, 0), 0x10b981, 40);
-          if (this.roomEnv.shortestPathBeams) {
-            this.roomEnv.shortestPathBeams.visible = true;
+          // In heuristic chamber, Target is only activatable after the A* route is unlocked
+          if (this.roomEnv.shortestPathBeams && this.roomEnv.shortestPathBeams.visible) {
+            this.isTargetReached = true;
+            sound.playAccessGranted();
+            this.spawnParticles(new THREE.Vector3(14.5, 1.2, 0), 0x10b981, 40);
+            if (this.onTargetReached) {
+              this.onTargetReached();
+            }
+            this.openVault();
           }
-          if (this.onTargetReached) {
-            this.onTargetReached();
-          }
-          this.openVault();
         }
         if (this.onDecisionCircleStep) {
           this.onDecisionCircleStep(insideAnyNode);
@@ -1427,12 +1494,22 @@ export class GameEngine {
       const rightDoor = this.roomBuilder.vaultDoorGroup.getObjectByName('vaultDoorRight');
       const wheel = this.roomBuilder.vaultDoorGroup.getObjectByName('vaultWheel');
       const led = this.roomBuilder.vaultDoorGroup.getObjectByName('scannerLed') as THREE.Mesh;
+      const statusLight = this.roomBuilder.vaultDoorGroup.getObjectByName('exitDoorStatusLight') as THREE.PointLight;
 
-      if (leftDoor) leftDoor.position.x = -0.9 - this.vaultOpenProgress * 2.5;
-      if (rightDoor) rightDoor.position.x = 0.9 + this.vaultOpenProgress * 2.5;
-      if (wheel) wheel.rotation.z += dt * 5;
-      if (led && (led.material as THREE.MeshBasicMaterial).color) {
-        (led.material as THREE.MeshBasicMaterial).color.setHex(0x10b981);
+      if (this.currentGame === 'heuristic_chamber') {
+        if (leftDoor) leftDoor.position.z = 1.25 + this.vaultOpenProgress * 2.2;
+        if (rightDoor) rightDoor.position.z = -1.25 - this.vaultOpenProgress * 2.2;
+        if (statusLight) {
+          statusLight.color.setHex(0x10b981);
+          statusLight.intensity = 2.5;
+        }
+      } else {
+        if (leftDoor) leftDoor.position.x = -0.9 - this.vaultOpenProgress * 2.5;
+        if (rightDoor) rightDoor.position.x = 0.9 + this.vaultOpenProgress * 2.5;
+        if (wheel) wheel.rotation.z += dt * 5;
+        if (led && (led.material as THREE.MeshBasicMaterial).color) {
+          (led.material as THREE.MeshBasicMaterial).color.setHex(0x10b981);
+        }
       }
     }
   }

@@ -288,7 +288,7 @@ export default function App() {
     setHeuristicStage(1);
     setHeuristicFeedback(null);
     if (engineRef.current) {
-      engineRef.current.updateHeuristicConsole(1);
+      engineRef.current.updateHeuristicChamberStage(1);
     }
   };
 
@@ -297,7 +297,7 @@ export default function App() {
     setHeuristicStage(5);
     setHeuristicFeedback(null);
     if (engineRef.current) {
-      engineRef.current.revealHeuristicTargetAndPath();
+      engineRef.current.updateHeuristicChamberStage(5);
     }
     showToast('TARGET LOCATED! Walk to the RED TARGET node.', '🎯');
   };
@@ -344,7 +344,7 @@ export default function App() {
           setHeuristicStage(2);
           setHeuristicFeedback(null);
           if (engineRef.current) {
-            engineRef.current.updateHeuristicConsole(2);
+            engineRef.current.updateHeuristicChamberStage(2);
           }
         }, 2200);
       } else if (nodeId === 'B' || nodeId === 'D') {
@@ -377,7 +377,7 @@ export default function App() {
           setHeuristicStage(3);
           setHeuristicFeedback(null);
           if (engineRef.current) {
-            engineRef.current.updateHeuristicConsole(3);
+            engineRef.current.updateHeuristicChamberStage(3);
           }
         }, 2200);
       } else if (nodeId === 'E' || nodeId === 'G') {
