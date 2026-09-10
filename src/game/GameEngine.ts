@@ -122,8 +122,9 @@ export class GameEngine {
 
     // Set spawn point based on game & level
     if (this.currentGame === 'heuristic_chamber') {
-      this.playerPosition.set(-13.0, 0, 0);
-      this.currentCheckpoint.set(-13.0, 0, 0);
+      const spawnX = this.currentLevel === 2 ? -15.0 : -13.0;
+      this.playerPosition.set(spawnX, 0, 0);
+      this.currentCheckpoint.set(spawnX, 0, 0);
       this.cameraYaw = -Math.PI / 2; // Face East (+X) towards the nodes and chamber
       this.cameraPitch = 0.26;
       this.cameraDistance = 4.2;
@@ -245,8 +246,9 @@ export class GameEngine {
 
     // Reset player position & camera based on level and game
     if (this.currentGame === 'heuristic_chamber') {
-      this.currentCheckpoint.set(-13.0, 0, 0);
-      this.playerPosition.set(-13.0, 0, 0);
+      const spawnX = levelId === 2 ? -15.0 : -13.0;
+      this.currentCheckpoint.set(spawnX, 0, 0);
+      this.playerPosition.set(spawnX, 0, 0);
       this.playerVelocity.set(0, 0, 0);
       this.isGrounded = true;
       this.cameraYaw = -Math.PI / 2; // Face East (+X) towards the nodes and chamber
@@ -345,8 +347,31 @@ export class GameEngine {
       }
     }
 
-    // Heuristic Chamber specific room bounds (Room size: 38m x 22m, X: -16.5 to +21.5, Z: -11 to +11)
+    // Heuristic Chamber specific room bounds
     if (this.currentGame === 'heuristic_chamber') {
+      if (this.currentLevel === 2) {
+        const minX = -17.5;
+        const maxX = 25.0;
+        const minZ = -12.4;
+        const maxZ = 12.4;
+
+        if (x < minX) return true;
+        if (z < minZ || z > maxZ) return true;
+
+        // East exit doorway at x = 24.5 between z = -2.5 and 2.5
+        if (this.isVaultOpening || this.isLevelExitCrossed || this.isTargetReached) {
+          if (Math.abs(z) < 2.5) {
+            if (x > 30.0) return true;
+            return false;
+          } else {
+            if (x > maxX) return true;
+          }
+        } else {
+          if (x > 24.2) return true;
+        }
+        return false;
+      }
+
       const minX = -16.0;
       const maxX = 21.0;
       const minZ = -10.4;
@@ -1036,7 +1061,7 @@ export class GameEngine {
   public updateHeuristicConsole(stageNumber: number) {
     const screenMesh = this.scene.getObjectByName('heuristicConsoleScreen') as THREE.Mesh;
     if (screenMesh && this.roomBuilder) {
-      const newTex = this.roomBuilder.createHeuristicConsoleTexture(stageNumber);
+      const newTex = this.roomBuilder.createHeuristicConsoleTexture(stageNumber, this.currentLevel);
       (screenMesh.material as THREE.MeshStandardMaterial).map = newTex;
       (screenMesh.material as THREE.MeshStandardMaterial).needsUpdate = true;
     }
@@ -1049,31 +1074,77 @@ export class GameEngine {
       const g1 = this.roomEnv.heuristicStageGroups.get(1);
       const g2 = this.roomEnv.heuristicStageGroups.get(2);
       const g3 = this.roomEnv.heuristicStageGroups.get(3);
+      const g4 = this.roomEnv.heuristicStageGroups.get(4);
 
-      if (stageNumber === 1) {
-        if (g1) g1.visible = true;
-        if (g2) g2.visible = false;
-        if (g3) g3.visible = false;
-        if (this.roomEnv.shortestPathBeams) this.roomEnv.shortestPathBeams.visible = false;
-      } else if (stageNumber === 2) {
-        if (g1) {
-          const badgeB = this.scene.getObjectByName('heuristicBadge_B');
-          const badgeD = this.scene.getObjectByName('heuristicBadge_D');
-          if (badgeB) badgeB.visible = false;
-          if (badgeD) badgeD.visible = false;
+      if (this.currentLevel === 2) {
+        if (stageNumber === 1) {
+          if (g1) g1.visible = true;
+          if (g2) g2.visible = false;
+          if (g3) g3.visible = false;
+          if (g4) g4.visible = false;
+          if (this.roomEnv.shortestPathBeams) this.roomEnv.shortestPathBeams.visible = false;
+        } else if (stageNumber === 2) {
+          if (g1) {
+            const badgeB = this.scene.getObjectByName('heuristicBadge_B');
+            const badgeC = this.scene.getObjectByName('heuristicBadge_C');
+            const badgeE = this.scene.getObjectByName('heuristicBadge_E');
+            if (badgeB) badgeB.visible = false;
+            if (badgeC) badgeC.visible = false;
+            if (badgeE) badgeE.visible = false;
+          }
+          if (g2) g2.visible = true;
+          if (g3) g3.visible = false;
+          if (g4) g4.visible = false;
+        } else if (stageNumber === 3) {
+          if (g2) {
+            const badgeF = this.scene.getObjectByName('heuristicBadge_F');
+            const badgeG = this.scene.getObjectByName('heuristicBadge_G');
+            const badgeI = this.scene.getObjectByName('heuristicBadge_I');
+            if (badgeF) badgeF.visible = false;
+            if (badgeG) badgeG.visible = false;
+            if (badgeI) badgeI.visible = false;
+          }
+          if (g3) g3.visible = true;
+          if (g4) g4.visible = false;
+        } else if (stageNumber === 4) {
+          if (g3) {
+            const badgeJ = this.scene.getObjectByName('heuristicBadge_J');
+            const badgeK = this.scene.getObjectByName('heuristicBadge_K');
+            const badgeM = this.scene.getObjectByName('heuristicBadge_M');
+            if (badgeJ) badgeJ.visible = false;
+            if (badgeK) badgeK.visible = false;
+            if (badgeM) badgeM.visible = false;
+          }
+          if (g4) g4.visible = true;
+        } else if (stageNumber >= 5) {
+          this.revealHeuristicTargetAndPath();
         }
-        if (g2) g2.visible = true;
-        if (g3) g3.visible = false;
-      } else if (stageNumber === 3) {
-        if (g2) {
-          const badgeE = this.scene.getObjectByName('heuristicBadge_E');
-          const badgeG = this.scene.getObjectByName('heuristicBadge_G');
-          if (badgeE) badgeE.visible = false;
-          if (badgeG) badgeG.visible = false;
+      } else {
+        if (stageNumber === 1) {
+          if (g1) g1.visible = true;
+          if (g2) g2.visible = false;
+          if (g3) g3.visible = false;
+          if (this.roomEnv.shortestPathBeams) this.roomEnv.shortestPathBeams.visible = false;
+        } else if (stageNumber === 2) {
+          if (g1) {
+            const badgeB = this.scene.getObjectByName('heuristicBadge_B');
+            const badgeD = this.scene.getObjectByName('heuristicBadge_D');
+            if (badgeB) badgeB.visible = false;
+            if (badgeD) badgeD.visible = false;
+          }
+          if (g2) g2.visible = true;
+          if (g3) g3.visible = false;
+        } else if (stageNumber === 3) {
+          if (g2) {
+            const badgeE = this.scene.getObjectByName('heuristicBadge_E');
+            const badgeG = this.scene.getObjectByName('heuristicBadge_G');
+            if (badgeE) badgeE.visible = false;
+            if (badgeG) badgeG.visible = false;
+          }
+          if (g3) g3.visible = true;
+        } else if (stageNumber >= 5) {
+          this.revealHeuristicTargetAndPath();
         }
-        if (g3) g3.visible = true;
-      } else if (stageNumber >= 5) {
-        this.revealHeuristicTargetAndPath();
       }
     }
   }
@@ -1472,7 +1543,7 @@ export class GameEngine {
 
       // Check if player walked through open exit doorway
       if ((this.isTargetReached || this.isVaultOpening) && !this.isLevelExitCrossed) {
-        const exitDoorX = 20.0;
+        const exitDoorX = this.currentLevel === 2 ? 24.0 : 20.0;
         const hasCrossed = this.playerPosition.x >= exitDoorX && Math.abs(this.playerPosition.z) < 3.0;
         if (hasCrossed) {
           this.isLevelExitCrossed = true;

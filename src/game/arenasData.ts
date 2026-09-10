@@ -31,7 +31,7 @@ export const ARENAS_DATA: ArenaItem[] = [
     title: 'Heuristic Chamber',
     subtitle: 'A* Search',
     difficulty: 'MEDIUM',
-    level: 'LV 1/10',
+    level: 'LV 2/10',
     mapLevelId: 3,
     colorGradient: 'from-red-600 via-orange-600 to-amber-600',
     iconSymbol: '▲',

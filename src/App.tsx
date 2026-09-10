@@ -16,6 +16,10 @@ import { LEVELS_DATA } from './game/levelsData';
 import { SearchMazeHUD } from './components/SearchMazeHUD';
 import { HeuristicChamberHUD } from './components/HeuristicChamberHUD';
 import {
+  HEURISTIC_LEVEL1_STAGES,
+  HEURISTIC_LEVEL2_STAGES,
+} from './game/heuristicChamberData';
+import {
   BfsStepState,
   generateBfsSteps,
   LEVEL1_GRAPH,
@@ -306,10 +310,10 @@ export default function App() {
     if (heuristicStageRef.current < 6) return;
     setHeuristicStage(7);
     sound.playVictory();
-    showToast('HEURISTIC CHAMBER LEVEL 1 COMPLETE!', '🏆');
+    showToast(`HEURISTIC CHAMBER LEVEL ${currentLevel} COMPLETE!`, '🏆');
     if (currentUser) {
-      currentUser.coins += 250;
-      currentUser.xp += 80;
+      currentUser.coins += currentLevel === 2 ? 350 : 250;
+      currentUser.xp += currentLevel === 2 ? 120 : 80;
       authService.saveUser(currentUser);
       setCurrentUser({ ...currentUser });
     }
@@ -320,105 +324,52 @@ export default function App() {
     setHeuristicStage(0);
     setHeuristicFeedback(null);
     if (engineRef.current) {
-      engineRef.current.loadLevel(1, 'heuristic_chamber');
+      engineRef.current.loadLevel(currentLevel, 'heuristic_chamber');
     }
   };
 
   const handleHeuristicCircleStep = (nodeId: string) => {
     if (currentGame !== 'heuristic_chamber') return;
     const stage = heuristicStageRef.current;
+    const isL2 = currentLevel === 2;
+    const stages = isL2 ? HEURISTIC_LEVEL2_STAGES : HEURISTIC_LEVEL1_STAGES;
+    const currentStageData = stages.find((s) => s.stageNumber === stage);
 
-    // Stage 1: Candidates B, C, D -> C is correct
-    if (stage === 1) {
-      if (nodeId === 'C') {
+    // Decision Stages (Stages 1-3 for Level 1, Stages 1-4 for Level 2)
+    if (currentStageData) {
+      const isCandidate = currentStageData.candidates.some((c) => c.id === nodeId);
+      if (!isCandidate) return;
+
+      if (nodeId === currentStageData.correctNodeId) {
         sound.playAccessGranted();
         if (engineRef.current) {
-          engineRef.current.setNodeFeedbackVisual('C', 'correct');
+          engineRef.current.setNodeFeedbackVisual(nodeId, 'correct');
         }
         setHeuristicFeedback({
           isError: false,
-          title: '✓ CORRECT',
-          explanation: 'A* selected the node with the lowest f(n).\n\nC:\ng = 4\nh = 3\n\nf = 4 + 3 = 7',
+          title: currentStageData.successTitle,
+          explanation: currentStageData.successExplanation,
         });
         setTimeout(() => {
-          setHeuristicStage(2);
+          const nextStage = stage + 1;
+          setHeuristicStage(nextStage);
           setHeuristicFeedback(null);
           if (engineRef.current) {
-            engineRef.current.updateHeuristicChamberStage(2);
+            engineRef.current.updateHeuristicChamberStage(nextStage);
+          }
+          if (isL2 && nextStage === 5) {
+            showToast('ALL DECISIONS SOLVED! Route Alpha optimal path active. Walk to TARGET.', '🎯');
           }
         }, 2200);
-      } else if (nodeId === 'B' || nodeId === 'D') {
+      } else {
         sound.playKeypad();
         if (engineRef.current) {
           engineRef.current.setNodeFeedbackVisual(nodeId, 'wrong');
         }
         setHeuristicFeedback({
           isError: true,
-          title: '✕ NOT THE BEST CHOICE',
-          explanation: 'Compare the f(n) values.\n\nf(n) = g(n) + h(n)\n\nB: 2 + 6 = 8\nC: 4 + 3 = 7\nD: 3 + 7 = 10',
-        });
-      }
-      return;
-    }
-
-    // Stage 2: Candidates E, F, G -> F is correct
-    if (stage === 2) {
-      if (nodeId === 'F') {
-        sound.playAccessGranted();
-        if (engineRef.current) {
-          engineRef.current.setNodeFeedbackVisual('F', 'correct');
-        }
-        setHeuristicFeedback({
-          isError: false,
-          title: '✓ CORRECT',
-          explanation: 'A* selected the node with the lowest f(n).\n\nF:\ng = 6\nh = 2\n\nf = 6 + 2 = 8',
-        });
-        setTimeout(() => {
-          setHeuristicStage(3);
-          setHeuristicFeedback(null);
-          if (engineRef.current) {
-            engineRef.current.updateHeuristicChamberStage(3);
-          }
-        }, 2200);
-      } else if (nodeId === 'E' || nodeId === 'G') {
-        sound.playKeypad();
-        if (engineRef.current) {
-          engineRef.current.setNodeFeedbackVisual(nodeId, 'wrong');
-        }
-        setHeuristicFeedback({
-          isError: true,
-          title: '✕ NOT THE BEST CHOICE',
-          explanation: 'Compare the f(n) values.\n\nf(n) = g(n) + h(n)\n\nE: 5 + 4 = 9\nF: 6 + 2 = 8\nG: 4 + 6 = 10',
-        });
-      }
-      return;
-    }
-
-    // Stage 3: Candidates H, I, J, K -> J is correct
-    if (stage === 3) {
-      if (nodeId === 'J') {
-        sound.playAccessGranted();
-        if (engineRef.current) {
-          engineRef.current.setNodeFeedbackVisual('J', 'correct');
-        }
-        setHeuristicFeedback({
-          isError: false,
-          title: '✓ CORRECT',
-          explanation: 'Node J selected! Even though node I had h=1, its cost travelled was g=11 (f=12).\nNode J achieves the lowest total f(n) = 7 + 3 = 10!',
-        });
-        setTimeout(() => {
-          setHeuristicStage(4);
-          setHeuristicFeedback(null);
-        }, 2200);
-      } else if (nodeId === 'H' || nodeId === 'I' || nodeId === 'K') {
-        sound.playKeypad();
-        if (engineRef.current) {
-          engineRef.current.setNodeFeedbackVisual(nodeId, 'wrong');
-        }
-        setHeuristicFeedback({
-          isError: true,
-          title: '✕ NOT THE BEST CHOICE',
-          explanation: 'Compare total f(n) = g(n) + h(n).\nNotice node I has h=1, but g=11 so f=12!\n\nH: 8 + 4 = 12\nI: 11 + 1 = 12\nJ: 7 + 3 = 10\nK: 9 + 5 = 14',
+          title: currentStageData.wrongTitle,
+          explanation: currentStageData.wrongExplanation,
         });
       }
       return;
@@ -1264,6 +1215,7 @@ export default function App() {
       {/* Heuristic Chamber Dedicated HUD (Only for Heuristic Chamber) */}
       {currentGame === 'heuristic_chamber' && (
         <HeuristicChamberHUD
+          currentLevel={currentLevel}
           stageIndex={heuristicStage}
           feedback={heuristicFeedback}
           playerTransform={playerTransform}

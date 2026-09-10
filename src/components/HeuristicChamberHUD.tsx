@@ -16,12 +16,15 @@ import {
 import {
   AStarCandidateNode,
   HEURISTIC_LEVEL1_STAGES,
+  HEURISTIC_LEVEL2_STAGES,
   HEURISTIC_TEACHING_CARD,
+  HEURISTIC_LEVEL2_META,
   HeuristicDecisionStage,
 } from '../game/heuristicChamberData';
 
 interface HeuristicChamberHUDProps {
-  stageIndex?: number; // 0: Start Screen, 1: Decision 1, 2: Decision 2, 3: Decision 3, 4: Teaching Moment, 5: Target Located, 6: Target Reached, 7: Level Complete
+  currentLevel?: number;
+  stageIndex?: number; // 0: Start Screen, 1: Decision 1, 2: Decision 2, 3: Decision 3, 4: Decision 4 (L2) / Teaching (L1), 5: Target Located, 6: Target Reached, 7: Level Complete
   stage?: number;
   feedback: {
     isError: boolean;
@@ -43,6 +46,7 @@ interface HeuristicChamberHUDProps {
 }
 
 export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
+  currentLevel = 1,
   stageIndex,
   stage,
   feedback,
@@ -60,8 +64,15 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
   const [showFormulaDetails, setShowFormulaDetails] = useState(false);
   const [showTacticalMap, setShowTacticalMap] = useState(true);
 
+  const isLevel2 = currentLevel === 2;
+  const totalDecisions = isLevel2 ? 4 : 3;
+
   const currentDecisionStage: HeuristicDecisionStage | undefined =
-    currentStage >= 1 && currentStage <= 3
+    isLevel2
+      ? currentStage >= 1 && currentStage <= 4
+        ? HEURISTIC_LEVEL2_STAGES[currentStage - 1]
+        : undefined
+      : currentStage >= 1 && currentStage <= 3
       ? HEURISTIC_LEVEL1_STAGES[currentStage - 1]
       : undefined;
 
@@ -71,15 +82,15 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
   const cardinalIndex = Math.round(headingDeg / 45) % 8;
   const cardinalText = cardinalDirections[cardinalIndex];
 
-  // Target coordinates in Level 1 room (X: 14.0, Z: 0.0)
-  const targetX = 14.0;
+  // Target coordinates in room
+  const targetX = isLevel2 ? 18.5 : 14.0;
   const targetZ = 0.0;
   const distToTarget = Math.sqrt(
     (targetX - pt.x) ** 2 + (targetZ - pt.z) ** 2
   ).toFixed(1);
 
-  // Exit door coordinates (X: 18.5, Z: 0.0)
-  const exitX = 18.5;
+  // Exit door coordinates
+  const exitX = isLevel2 ? 24.5 : 18.5;
   const exitZ = 0.0;
   const distToExit = Math.sqrt(
     (exitX - pt.x) ** 2 + (exitZ - pt.z) ** 2
@@ -96,15 +107,23 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
             {/* Header Badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black tracking-widest uppercase">
               <Cpu className="w-3.5 h-3.5 text-amber-400" />
-              HEURISTIC CHAMBER · LEVEL 1
+              HEURISTIC CHAMBER · LEVEL {currentLevel}
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              FIRST HEURISTIC
+              {isLevel2 ? 'HEURISTIC TRAP' : 'FIRST HEURISTIC'}
             </h2>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
-              A navigation system is searching for the <span className="text-rose-400 font-bold">TARGET</span>.
+              {isLevel2 ? (
+                <>
+                  Do <span className="text-rose-400 font-black underline">NOT</span> choose a node just because it has the lowest <span className="text-cyan-300 font-bold">h(n)</span>!
+                </>
+              ) : (
+                <>
+                  A navigation system is searching for the <span className="text-rose-400 font-bold">TARGET</span>.
+                </>
+              )}
             </p>
 
             {/* A* Formula Core Box */}
@@ -130,8 +149,17 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
 
             {/* Mission Objective */}
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300">
-              <span className="font-bold text-amber-300">Your task: </span>
-              Choose the node with the <span className="font-black text-emerald-400">BEST f(n)</span> value.
+              {isLevel2 ? (
+                <>
+                  <span className="font-bold text-rose-400">Trap Warning: </span>
+                  Lowest heuristic distance can lead down expensive detours. Choose the node with the <span className="font-black text-emerald-400">LOWEST f(n)</span>!
+                </>
+              ) : (
+                <>
+                  <span className="font-bold text-amber-300">Your task: </span>
+                  Choose the node with the <span className="font-black text-emerald-400">BEST f(n)</span> value.
+                </>
+              )}
             </div>
 
             {/* Begin Button */}
@@ -159,14 +187,16 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
-                  A* EVALUATION FORMULA
+                  {isLevel2 ? 'HEURISTIC TRAP · A* SEARCH' : 'A* EVALUATION FORMULA'}
                 </span>
                 <span className="font-mono text-xs font-black text-white">
                   f(n) = <span className="text-amber-300">g(n)</span> + <span className="text-cyan-300">h(n)</span>
                 </span>
               </div>
               <span className="text-[9px] text-slate-400">
-                Total Estimated Cost = Actual Path Cost + Heuristic Remaining
+                {isLevel2
+                  ? 'Always evaluate f(n) · Avoid greedy heuristic traps!'
+                  : 'Total Estimated Cost = Actual Path Cost + Heuristic Remaining'}
               </span>
             </div>
           </div>
@@ -176,7 +206,7 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onRestartLevel}
-            title="Reload Level 1 Chamber"
+            title={`Reload Level ${currentLevel} Chamber`}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
@@ -221,9 +251,9 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* 4. TEACHING MOMENT OVERLAY (After completing all 3 decisions)              */}
+      {/* 4. TEACHING MOMENT OVERLAY (Only Level 1 Stage 4)                         */}
       {/* ========================================================================= */}
-      {currentStage === 4 && (
+      {!isLevel2 && currentStage === 4 && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 pointer-events-auto animate-fadeIn">
           <div className="max-w-md w-full rounded-3xl border-2 border-emerald-500/60 bg-slate-900/95 p-6 shadow-[0_0_50px_rgba(16,185,129,0.25)] text-center text-slate-100 space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black tracking-widest uppercase">
@@ -284,10 +314,10 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
               TARGET LOCATED
             </div>
             <div className="text-xs font-medium text-slate-300">
-              The A* navigation system has identified the best route.
+              The A* navigation system has identified the optimal route.
             </div>
             <div className="pt-1 text-[11px] font-mono text-cyan-300">
-              Follow the illuminated cyan energy path directly to the <span className="text-rose-400 font-bold">RED TARGET</span>!
+              Follow the illuminated green shortest path beam to the <span className="text-rose-400 font-bold">RED TARGET</span>!
             </div>
           </div>
         </div>
@@ -304,14 +334,14 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
               East Security Exit Gateway is UNLOCKED!
             </div>
             <div className="pt-1 text-[11px] font-mono text-emerald-300">
-              Walk through the open exit door on the East wall to complete Level 1.
+              Walk through the open exit doorway on the East wall to complete Level {currentLevel}.
             </div>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 6. LEVEL 1 COMPLETE VICTORY MODAL                                         */}
+      {/* 6. LEVEL COMPLETE VICTORY MODAL                                            */}
       {/* ========================================================================= */}
       {currentStage === 7 && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 pointer-events-auto animate-fadeIn">
@@ -322,13 +352,15 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
 
             <div className="space-y-1">
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                LEVEL 1 COMPLETE ✓
+                LEVEL {currentLevel} COMPLETE ✓
               </h2>
               <p className="text-sm font-bold text-emerald-400">
-                FIRST HEURISTIC MASTERED
+                {isLevel2 ? 'HEURISTIC TRAP MASTERED' : 'FIRST HEURISTIC MASTERED'}
               </p>
               <div className="text-xs text-slate-400 pt-1">
-                You successfully guided the A* navigation system by selecting the optimal f(n) nodes.
+                {isLevel2
+                  ? 'You successfully navigated past greedy traps by balancing path cost g(n) with estimated heuristic h(n)!'
+                  : 'You successfully guided the A* navigation system by selecting the optimal f(n) nodes.'}
               </div>
             </div>
 
@@ -336,17 +368,17 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
             <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5 flex items-center justify-around font-mono text-xs">
               <div className="text-center">
                 <span className="text-slate-400 block text-[10px]">COINS EARNED</span>
-                <span className="text-amber-400 font-bold text-sm">+250 🪙</span>
+                <span className="text-amber-400 font-bold text-sm">+{isLevel2 ? 350 : 250} 🪙</span>
               </div>
               <div className="h-6 w-px bg-slate-800" />
               <div className="text-center">
                 <span className="text-slate-400 block text-[10px]">XP EARNED</span>
-                <span className="text-cyan-400 font-bold text-sm">+80 XP</span>
+                <span className="text-cyan-400 font-bold text-sm">+{isLevel2 ? 120 : 80} XP</span>
               </div>
               <div className="h-6 w-px bg-slate-800" />
               <div className="text-center">
                 <span className="text-slate-400 block text-[10px]">STATUS</span>
-                <span className="text-emerald-400 font-bold text-sm">LEVEL 1 MASTERED</span>
+                <span className="text-emerald-400 font-bold text-sm">LEVEL {currentLevel} MASTERED</span>
               </div>
             </div>
 
@@ -364,14 +396,14 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
       {/* ========================================================================= */}
       {/* 7. BOTTOM HUD: ACTIVE A* DECISION PANEL & TACTICAL RADAR                  */}
       {/* ========================================================================= */}
-      {currentDecisionStage && currentStage >= 1 && currentStage <= 3 && (
+      {currentDecisionStage && (
         <div className="w-full flex items-end justify-between gap-4 pointer-events-auto">
           {/* Main Decision Card */}
           <div className="max-w-xl w-full rounded-2xl border border-amber-500/50 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-md space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div className="flex items-center gap-2">
                 <span className="rounded bg-amber-500/20 border border-amber-400/40 px-2 py-0.5 text-[10px] font-black text-amber-300">
-                  STAGE {currentDecisionStage.stageNumber} OF 3
+                  STAGE {currentDecisionStage.stageNumber} OF {totalDecisions}
                 </span>
                 <span className="text-xs font-black tracking-wide text-white">
                   {currentDecisionStage.stageTitle}
@@ -388,7 +420,7 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
             </div>
 
             {/* Physical candidate nodes preview */}
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {currentDecisionStage.candidates.map((cand) => (
                 <div
                   key={cand.id}
@@ -403,7 +435,7 @@ export const HeuristicChamberHUD: React.FC<HeuristicChamberHUDProps> = ({
                       h = <span className="text-cyan-300 font-bold">{cand.h}</span>
                     </div>
                     <div className="pt-0.5 border-t border-slate-800 text-emerald-400 font-bold">
-                      f = {cand.f}
+                      {cand.f < 0 ? 'f = ?' : `f = ${cand.f}`}
                     </div>
                   </div>
                 </div>

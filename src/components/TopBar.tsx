@@ -39,17 +39,29 @@ export const TopBar: React.FC<TopBarProps> = ({
   const isSearchMaze = currentGame === 'search_maze';
   const isHeuristicChamber = currentGame === 'heuristic_chamber';
   const activeLevelInfo = isHeuristicChamber
-    ? {
-        id: 1 as LevelId,
-        name: 'First Heuristic',
-        chapter: 'Heuristic Chamber',
-        themeName: 'A* Navigation Laboratory',
-        icon: '🗺️',
-        difficulty: 'Easy → Medium',
-        badgeColor: 'from-amber-600 to-orange-600',
-        description: 'Evaluate f(n) = g(n) + h(n), explore candidate nodes, and reach the Target.',
-        roomSize: { width: 40, depth: 24, height: 7.5 },
-      }
+    ? currentLevel === 2
+      ? {
+          id: 2 as LevelId,
+          name: 'Heuristic Trap',
+          chapter: 'Heuristic Chamber',
+          themeName: 'A* Search · Trap Laboratory',
+          icon: '⚡',
+          difficulty: 'Medium → Hard',
+          badgeColor: 'from-amber-600 to-rose-600',
+          description: 'Do not choose a node just because it has the lowest h(n). Always calculate f(n) = g(n) + h(n).',
+          roomSize: { width: 44, depth: 26, height: 6.5 },
+        }
+      : {
+          id: 1 as LevelId,
+          name: 'First Heuristic',
+          chapter: 'Heuristic Chamber',
+          themeName: 'A* Navigation Laboratory',
+          icon: '🗺️',
+          difficulty: 'Easy → Medium',
+          badgeColor: 'from-amber-600 to-orange-600',
+          description: 'Evaluate f(n) = g(n) + h(n), explore candidate nodes, and reach the Target.',
+          roomSize: { width: 40, depth: 24, height: 7.5 },
+        }
     : isSearchMaze
     ? SEARCH_MAZE_LEVELS_DATA[currentLevel] || SEARCH_MAZE_LEVELS_DATA[1]
     : LEVELS_DATA[currentLevel];
@@ -98,7 +110,13 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showLevelMenu ? 'rotate-180' : ''}`} />
                 </div>
                 <span className="text-xs font-black tracking-tight leading-none text-slate-100">
-                  {isHeuristicChamber ? 'Level 1: First Heuristic' : isSearchMaze ? `Level ${currentLevel}: First Search` : `Level ${currentLevel} of 5`}
+                  {isHeuristicChamber
+                    ? currentLevel === 2
+                      ? 'Level 2: Heuristic Trap'
+                      : 'Level 1: First Heuristic'
+                    : isSearchMaze
+                    ? `Level ${currentLevel}: First Search`
+                    : `Level ${currentLevel} of 5`}
                 </span>
               </div>
             </button>
@@ -107,26 +125,40 @@ export const TopBar: React.FC<TopBarProps> = ({
             {showLevelMenu && (
               <div className="absolute top-12 left-0 w-72 bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-700 p-2 shadow-2xl space-y-1 text-xs text-slate-200 animate-fadeIn z-40">
                 <div className="px-2.5 py-1.5 text-[10px] uppercase font-black tracking-wider text-slate-400">
-                  {isHeuristicChamber ? 'Heuristic Chamber' : isSearchMaze ? 'Search Maze Levels' : 'Agent Academy Levels (5 Levels)'}
+                  {isHeuristicChamber ? 'Heuristic Chamber (A* Search)' : isSearchMaze ? 'Search Maze Levels' : 'Agent Academy Levels (5 Levels)'}
                 </div>
                 {isHeuristicChamber ? (
-                  <button
-                    onClick={() => {
-                      sound.playUiClick();
-                      setShowLevelMenu(false);
-                      onSelectLevel(1);
-                    }}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left bg-amber-500/20 border border-amber-500/40 text-amber-300 cursor-pointer"
-                  >
-                    <span className="text-2xl">🗺️</span>
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs">Level 1: First Heuristic</span>
-                        <span className="text-[10px] text-amber-400 font-mono font-bold">A* SEARCH</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400">f(n) = g(n) + h(n) Navigation Laboratory</span>
-                    </div>
-                  </button>
+                  ([1, 2] as LevelId[]).map((lvl) => {
+                    const isSelected = lvl === currentLevel;
+                    return (
+                      <button
+                        key={lvl}
+                        onClick={() => {
+                          sound.playUiClick();
+                          setShowLevelMenu(false);
+                          onSelectLevel(lvl);
+                        }}
+                        className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+                            : 'hover:bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        <span className="text-2xl">{lvl === 1 ? '🗺️' : '⚡'}</span>
+                        <div className="flex flex-col flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs">
+                              {lvl === 1 ? 'Level 1: First Heuristic' : 'Level 2: Heuristic Trap'}
+                            </span>
+                            <span className="text-[10px] text-amber-400 font-mono font-bold">A*</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            {lvl === 1 ? 'f(n) = g(n) + h(n) Introduction' : 'Trap: Avoid picking solely lowest h(n)'}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
                 ) : isSearchMaze ? (
                   ([1, 2, 3, 4] as LevelId[]).map((lvl) => {
                     const info = SEARCH_MAZE_LEVELS_DATA[lvl] || SEARCH_MAZE_LEVELS_DATA[1];
